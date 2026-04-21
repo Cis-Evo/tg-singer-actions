@@ -2,43 +2,71 @@ on:
   schedule:
     - cron: '30 02 * * *'
   workflow_dispatch:
+
 permissions:
   actions: write
   contents: write
+
 jobs:
   sign-job:
     name: sign-job-name
     runs-on: ubuntu-22.04
     permissions:
       contents: write
+
     steps:
-    - uses: actions/setup-python@v6
-      with:
-        python-version: '3.13'
-    - name: install tg-signer
-      run: |
-        pip3 install tg-signer
-    - name: sign
-      env:
-        SESSION_STRING: ${{ secrets.SESSION_STRING }}
-        TASK_MAP: ${{ secrets.TASK_MAP }}
-      run: |
-        echo "$TASK_MAP" | jq -r 'to_entries[] | "\(.key)\t\(.value | tojson)"' | while IFS=$'\t' read -r key value_json; do
-            task_path=".signer/signs/${key}"
-            mkdir -p ${task_path}
-            config_name="${task_path}/config.json"
-            echo "$value_json" | jq . > "$config_name"
-            # 避免隐私信息输出，若想输出日志则删除 `> /dev/null 2>&1`
-            tg-signer --session-string "$SESSION_STRING" run-once ${key} > /dev/null 2>&1
-        done
-    - name: 拉取代码
-      uses: actions/checkout@v4
-      with:
-        persist-credentials: true
-        fetch-depth: 0
-    - name: 自动续命Actions(防止60天禁用action)
-      run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git commit --allow-empty -m "auto keep actions alive (no code change)"
-        git push origin main
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: install tg-signer
+        run: pip3 install tg-signer
+
+      - name: sign
+        env:
+          SESSION_STRINGS: ${{ secrets.SESSION_STRINGS }}
+          TASK_MAP: ${{ secrets.TASK_MAP }}
+        run: |
+          readarray -t SESSIONS < <(python3 - <<'EOF'
+          import sys, csv, os
+          raw = os.environ.get("SESSION_STRINGS", "")
+          reader = csv.reader([raw])
+          for row in reader:
+              for val in row:
+                  v = val.strip()
+                  if v:
+                      print(v)
+          EOF
+          )
+
+          echo "$TASK_MAP" | jq -r 'to_entries[] | "\(.key)\t\(.value | tojson)"' \
+          | while IFS=$'\t' read -r key value_json; do
+              task_path=".signer/signs/${key}"
+              mkdir -p "${task_path}"
+              config_name="${task_path}/config.json"
+              
+              session_index=$(echo "$value_json" | jq -r '.session_index // 0')
+              echo "$value_json" | jq 'del(.session_index)' > "$config_name"
+
+              session_string="${SESSIONS[$session_index]}"
+
+              if [[ -z "$session_string" ]]; then
+                  echo "ERROR: no session at index ${session_index} for task ${key}" >&2
+                  exit 1
+              fi
+
+              tg-signer --session-string "$session_string" run-once "${key}" > /dev/null 2>&1
+          done
+
+      - name: 拉取代码
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: 自动续命Actions(防止60天禁用action)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "auto keep actions alive (no code change)"
+          git push origin main
