@@ -1,0 +1,33 @@
+name: HoyoLab HSR Auto Sign
+
+on:
+  schedule:
+    - cron: '0 1 * * *'  # 每天 UTC 01:00 执行
+  workflow_dispatch:      # 允许手动触发
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sign for all accounts
+        env:
+          COOKIES: ${{ secrets.COOKIES }}
+        run: |
+          echo "$COOKIES" | jq -r '.[]' | while read -r cookie; do
+            echo "--- Signing for account ---"
+            response=$(curl -s \
+              -X POST \
+              'https://sg-public-api.hoyolab.com/event/luna/hkrpg/os/sign' \
+              -H 'Accept: application/json, text/plain, */*' \
+              -H 'Content-Type: application/json;charset=UTF-8' \
+              -H 'Origin: https://act.hoyolab.com' \
+              -H 'Referer: https://act.hoyolab.com/' \
+              -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.0.0' \
+              -H 'x-rpc-client_type: 5' \
+              -H 'x-rpc-platform: 4' \
+              -H 'x-rpc-signgame: hkrpg' \
+              -H "Cookie: $cookie" \
+              -d '{"act_id":"e202303301540311","lang":"zh-cn"}')
+            echo "Response: $response"
+            sleep 3
+          done
