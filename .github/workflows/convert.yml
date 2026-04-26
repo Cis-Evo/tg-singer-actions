@@ -1,0 +1,64 @@
+name: convert-telethon-to-pyrogram
+
+on:
+  workflow_dispatch:
+
+jobs:
+  convert:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install TGConvertor telethon pyrogram tgcrypto
+          
+      - name: Convert sessions
+        env:
+          SESSION_STRINGS: ${{ secrets.SESSION_STRINGS }}
+        run: |
+          python3 - << 'EOF'
+          import json
+          import asyncio
+          import os
+          from TGConvertor import SessionManager
+
+          async def convert_one(idx, telethon_str):
+              try:
+                  session = SessionManager.from_telethon_string(telethon_str)
+                  pyro_str = session.to_pyrogram_string()
+                  print(f"[OK] session[{idx}] => {pyro_str}")
+              except Exception as e:
+                  print(f"[FAIL] session[{idx}] => {e}")
+
+          async def main():
+              raw = os.environ.get("SESSION_STRINGS", "[]")
+
+              try:
+                  sessions = json.loads(raw)
+                  if not isinstance(sessions, list):
+                      raise ValueError("SESSION_STRINGS 必须是 JSON 数组")
+              except Exception as e:
+                  print(f"[ERROR] 解析 SESSION_STRINGS 失败: {e}")
+                  return
+
+              print(f"检测到 {len(sessions)} 个会话\n")
+
+              tasks = []
+              for i, s in enumerate(sessions):
+                  if not isinstance(s, str) or not s.strip():
+                      print(f"[SKIP] session[{i}] 非法或为空")
+                      continue
+                  tasks.append(convert_one(i, s.strip()))
+
+              await asyncio.gather(*tasks)
+
+              print("\n=== DONE ===")
+
+          asyncio.run(main())
+          EOF
