@@ -1,8 +1,9 @@
 {
-    "test_task": {
+    "task_account0": {
+        "session_index": 0,
         "chats": [
             {
-                "chat_id": 1234567890,
+                "chat_id": 1111111111,
                 "name": "签到",
                 "delete_after": null,
                 "actions": [
@@ -11,11 +12,59 @@
                         "text": "/start"
                     },
                     {
-                        "action": 3,
-                        "text": "签到"
+                        "action": 1,
+                        "text": "/checkin"
                     }
                 ],
-                "action_interval": 1.0
+                "action_interval": 2.0
+            }
+        ],
+        "sign_at": "30 10 * * *",
+        "random_seconds": 1800,
+        "sign_interval": 1
+    },
+    "task_account1": {
+        "session_index": 1,
+        "chats": [
+            {
+                "chat_id": 2222222222,
+                "name": "签到",
+                "delete_after": null,
+                "actions": [
+                    {
+                        "action": 1,
+                        "text": "/start"
+                    },
+                    {
+                        "action": 1,
+                        "text": "/checkin"
+                    }
+                ],
+                "action_interval": 2.0
+            }
+        ],
+        "sign_at": "30 10 * * *",
+        "random_seconds": 1800,
+        "sign_interval": 1
+    },
+    "task_account2": {
+        "session_index": 2,
+        "chats": [
+            {
+                "chat_id": 2222222222,
+                "name": "签到",
+                "delete_after": null,
+                "actions": [
+                    {
+                        "action": 1,
+                        "text": "/start"
+                    },
+                    {
+                        "action": 1,
+                        "text": "/checkin"
+                    }
+                ],
+                "action_interval": 2.0
             }
         ],
         "sign_at": "30 10 * * *",
