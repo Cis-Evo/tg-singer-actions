@@ -1,0 +1,53 @@
+name: Bilibili VIP Experience Sign
+
+on:
+  schedule:
+    - cron: '0 1 * * *'  # 每天 UTC 01:00 执行
+  workflow_dispatch:
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bilibili VIP Daily Sign
+        env:
+          COOKIES: ${{ secrets.BILIBILI_COOKIES }}
+        run: |
+          echo "$COOKIES" | jq -r '.[]' | while read -r cookie; do
+            echo "--- Signing for account ---"
+
+            # 从 Cookie 中提取必要参数
+            mid=$(echo "$cookie"    | grep -oP 'DedeUserID=\K[^;]+')
+            csrf=$(echo "$cookie"   | grep -oP 'bili_jct=\K[^;]+')
+            buvid=$(echo "$cookie"  | grep -oP 'buvid3=\K[^;]+')
+
+            if [ -z "$mid" ] || [ -z "$csrf" ] || [ -z "$buvid" ]; then
+              echo "ERROR: 缺少必要参数 (mid/csrf/buvid)，跳过此账号"
+              continue
+            fi
+
+            echo "mid=$mid"
+
+            response=$(curl -s \
+              -X POST \
+              "https://api.bilibili.com/x/vip/experience/add?mid=${mid}&buvid=${buvid}&csrf=${csrf}" \
+              --compressed \
+              -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:149.0) Gecko/20100101 Firefox/149.0' \
+              -H 'Accept: application/json, text/plain, */*' \
+              -H 'Accept-Language: zh-CN,zh;q=0.9,zh-TW;q=0.8,zh-HK;q=0.7,en-US;q=0.6,en;q=0.5' \
+              -H 'Origin: https://account.bilibili.com' \
+              -H 'Referer: https://account.bilibili.com/' \
+              -H 'Sec-Fetch-Dest: empty' \
+              -H 'Sec-Fetch-Mode: cors' \
+              -H 'Sec-Fetch-Site: same-site' \
+              -H "Cookie: $cookie")
+
+            echo "Response: $response"
+
+            # 简单判断是否成功
+            code=$(echo "$response" | jq -r '.code // "unknown"')
+            msg=$(echo "$response"  | jq -r '.message // ""')
+            echo "code=$code  msg=$msg"
+
+            sleep 3
+          done
