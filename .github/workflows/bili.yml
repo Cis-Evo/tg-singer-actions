@@ -2,7 +2,7 @@ name: Bilibili VIP Experience Sign
 
 on:
   schedule:
-    - cron: '0 1 * * *'  # 每天 UTC 01:00 执行
+    - cron: '0 20 * * *'
   workflow_dispatch:
 
 jobs:
@@ -16,7 +16,6 @@ jobs:
           echo "$COOKIES" | jq -r '.[]' | while read -r cookie; do
             echo "--- Signing for account ---"
 
-            # 从 Cookie 中提取必要参数
             mid=$(echo "$cookie"    | grep -oP 'DedeUserID=\K[^;]+')
             csrf=$(echo "$cookie"   | grep -oP 'bili_jct=\K[^;]+')
             buvid=$(echo "$cookie"  | grep -oP 'buvid3=\K[^;]+')
